@@ -11,8 +11,8 @@ dotenv.config();
 
 const userBaekJoonIds = ['min4456e', 'beans3142', 'yeom123', 'elice100479', 'suhyunnn01', 'rereers1125']
 
-/* DynamoDB */
 
+// DynamoDB ===========================================================================
 AWS.config.update({
   region: "ap-northeast-2",
   accessKeyId: process.env.ACCESS_KEY_ID,
@@ -91,6 +91,7 @@ addUsersAndRead();
 // 24시간마다 반복 실행
 setInterval(addUsersAndRead, 24 * 60 * 60 * 1000);
 
+// DynamoDB ===========================================================================
 
 app.get('/rank', async (req, res) => {
   try {
