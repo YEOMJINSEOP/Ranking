@@ -1,9 +1,11 @@
 import express from 'express';
 import axios from 'axios';
+import cors from 'cors';
 
 const app = express();
+app.use(cors());
 
-const userBaekJoonIds = ['yeom123']
+const userBaekJoonIds = ['min4456e', 'beans3142', 'yeom123', 'elice100479', 'suhyunnn01', 'rereers1125']
 
 app.get('/rank', async (req, res) => {
   try {
@@ -26,7 +28,10 @@ app.get('/rank', async (req, res) => {
 
       return userData;
     }))
-    res.send(usersData);
+
+    const sortedUsersData = usersData.flat().sort((a, b) => b.solvedCount - a.solvedCount);
+    console.log('sortedUser', sortedUsersData);
+    res.send(sortedUsersData);
   }
   catch (error) {
     console.error(error);
@@ -34,4 +39,4 @@ app.get('/rank', async (req, res) => {
 });
 
 
-app.listen(8080);
+app.listen(80);
