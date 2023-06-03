@@ -124,5 +124,31 @@ app.get('/rank', async (req, res) => {
   }
 });
 
+app.get('/id-check', async (req,res) => {
+  const options = {
+    method: 'GET',
+    url: 'https://solved.ac/api/v3/search/user',
+    params: {query: 'yeom123'},
+    headers: {Accept: 'application/json'}
+  };
+  
+  try {
+    const { data } = await axios.request(options);
+    if(data.count === 0){
+      res.send({
+        idCheck: false
+      })
+    }
+    else{
+      res.send({
+        idCheck: true
+      });
+    }
+    
+  } catch (error) {
+    console.error(error);
+  }
+})
+
 
 app.listen(80);
