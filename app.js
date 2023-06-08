@@ -17,7 +17,7 @@ const fetchUserDataFromServer =  async () => {
     };
 
     const {data} = await axios.request(options);
-
+    console.log('data from server:', data);
     return data
   } catch(error) {
     console.error(error);
@@ -85,11 +85,10 @@ const getAllUserIds = () => {
 };
 
 const addUsersAndRead = async (item) => {
-  console.log('🔥', userItems);
   try {
     await addMultipleUsersToRankingTable(item);
     const userIds = await getAllUserIds();
-    console.log(userIds);
+    console.log('💩',userIds);
   } catch (error) {
     console.error('An error occurred:', error);
   }
@@ -104,6 +103,7 @@ const getUserItemsAndAdd = async () => {
     userItems = userData.map((user) => ({
       userId: user.bjid
     }));
+    console.log('🔥', userItems);
     await addUsersAndRead(userItems);
   } catch (error) {
     console.error(error);
@@ -120,7 +120,6 @@ setInterval(getUserItemsAndAdd, 24 * 60 * 60 * 1000);
 app.get('/rank', async (req, res) => {
   try {
     const usersData = await Promise.all(userItems.map(async (userItem) => {
-      console.log('🐜', userItem);
       const options = {
         method: 'GET',
         url: 'https://solved.ac/api/v3/search/user',
