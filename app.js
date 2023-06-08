@@ -18,155 +18,163 @@ const fetchUserDataFromServer =  async () => {
 
     const {data} = await axios.request(options);
 
-    console.log('User data: ', data);
     return data
   } catch(error) {
     console.error(error);
   }
 }
 
-fetchUserDataFromServer();
 
-// const userBaekJoonIds = ['min4456e', 'beans3142', 'yeom123', 'elice100479', 'suhyunnn01', 'rereers1125']
+// DynamoDB ===========================================================================
+AWS.config.update({
+  region: "ap-northeast-2",
+  accessKeyId: process.env.ACCESS_KEY_ID,
+  secretAccessKey: process.env.SECRET_ACCESS_KEY
+});
+
+const docClient = new AWS.DynamoDB.DocumentClient({apiVersion: '2012-08-10'});
 
 
-// // DynamoDB ===========================================================================
-// AWS.config.update({
-//   region: "ap-northeast-2",
-//   accessKeyId: process.env.ACCESS_KEY_ID,
-//   secretAccessKey: process.env.SECRET_ACCESS_KEY
-// });
+const addUserToRankingTable = (item) => {
+  return new Promise((resolve, reject) => {
+    const userItem = {
+      TableName: 'ranking',
+      Item: item
+    };
 
-// const docClient = new AWS.DynamoDB.DocumentClient({apiVersion: '2012-08-10'});
+    docClient.put(userItem, function(err, data) {
+      if (err) {
+        console.error("Error", err);
+        reject(err);
+      } else {
+        console.log("Success", data);
+        resolve(data);
+      }
+    });
+  });
+}
 
-// const userItems = userBaekJoonIds.map(id => {
-//   return {
-//     userId: id
-//   }
-// });
+const addMultipleUsersToRankingTable = async (userItems) => {
+  try {
+    const promises = userItems.map(item => addUserToRankingTable (item));
+    await Promise.all(promises);
+    console.log('All items have been successfully stored');
+  } catch (error) {
+    console.error('An error occurred while storing the items', error);
+  }
+};
 
-// const addUserToRankingTable = (item) => {
-//   return new Promise((resolve, reject) => {
-//     const userItem = {
-//       TableName: 'ranking',
-//       Item: item
-//     };
+const getAllUserIds = () => {
+  return new Promise((resolve, reject) => {
+    const params = {
+      TableName: 'ranking',
+      ProjectionExpression: 'userId' // The names of one or more attributes to retrieve
+    };
 
-//     docClient.put(userItem, function(err, data) {
-//       if (err) {
-//         console.error("Error", err);
-//         reject(err);
-//       } else {
-//         console.log("Success", data);
-//         resolve(data);
-//       }
-//     });
-//   });
-// }
+    docClient.scan(params, (err, data) => {
+      if (err) {
+        console.error('Error', JSON.stringify(err, null, 2));
+        reject(err);
+      } else {
+        console.log('Scan succeeded');
+        const userIds = data.Items.map((item) => item.userId);
+        resolve(userIds);
+      }
+    });
+  });
+};
 
-// const addMultipleUsersToRankingTable = async () => {
-//   try {
-//     const promises = userItems.map(item => addUserToRankingTable (item));
-//     await Promise.all(promises);
-//     console.log('All items have been successfully stored');
-//   } catch (error) {
-//     console.error('An error occurred while storing the items', error);
-//   }
-// };
+const addUsersAndRead = async (item) => {
+  console.log('🔥', userItems);
+  try {
+    await addMultipleUsersToRankingTable(item);
+    const userIds = await getAllUserIds();
+    console.log(userIds);
+  } catch (error) {
+    console.error('An error occurred:', error);
+  }
+};
 
-// const getAllUserIds = () => {
-//   return new Promise((resolve, reject) => {
-//     const params = {
-//       TableName: 'ranking',
-//       ProjectionExpression: 'userId' // The names of one or more attributes to retrieve
-//     };
+let userItems = [];
 
-//     docClient.scan(params, (err, data) => {
-//       if (err) {
-//         console.error('Error', JSON.stringify(err, null, 2));
-//         reject(err);
-//       } else {
-//         console.log('Scan succeeded');
-//         const userIds = data.Items.map((item) => item.userId);
-//         resolve(userIds);
-//       }
-//     });
-//   });
-// };
+const getUserItemsAndAdd = async () => {
+  try {
+    const data = await fetchUserDataFromServer();
+    const userData = data.dataList;
+    userItems = userData.map((user) => ({
+      userId: user.bjid
+    }));
+    await addUsersAndRead(userItems);
+  } catch (error) {
+    console.error(error);
+  }
+};
 
-// const addUsersAndRead = async () => {
-//   try {
-//     await addMultipleUsersToRankingTable();
-//     const userIds = await getAllUserIds();
-//     console.log(userIds);
-//   } catch (error) {
-//     console.error('An error occurred:', error);
-//   }
-// };
 
-// addUsersAndRead();
+// 24시간마다 반복 실행
+getUserItemsAndAdd();
+setInterval(getUserItemsAndAdd, 24 * 60 * 60 * 1000);
 
-// // 24시간마다 반복 실행
-// setInterval(addUsersAndRead, 24 * 60 * 60 * 1000);
+// DynamoDB ===========================================================================
 
-// // DynamoDB ===========================================================================
-
-// app.get('/rank', async (req, res) => {
-//   try {
-//     const usersData = await Promise.all(userBaekJoonIds.map(async (userId) => {
-//       const options = {
-//         method: 'GET',
-//         url: 'https://solved.ac/api/v3/search/user',
-//         params: {query: userId},
-//         headers: {Accept: 'application/json'}
-//       };
+app.get('/rank', async (req, res) => {
+  try {
+    const usersData = await Promise.all(userItems.map(async (userItem) => {
+      console.log('🐜', userItem);
+      const options = {
+        method: 'GET',
+        url: 'https://solved.ac/api/v3/search/user',
+        params: {query: userItem.userId},
+        headers: {Accept: 'application/json'}
+      };
   
-//       const { data } = await axios.request(options);
+      const { data } = await axios.request(options);
 
-//       console.log(`${data.items[0].handle} : ${data.items[0].solvedCount}`);
+      console.log(`${data.items[0].handle} : ${data.items[0].solvedCount}`);
 
-//       const userData = data.items.map(item => ({
-//         userId: item.handle,
-//         solvedCount: item.solvedCount
-//       }));
+      const userData = data.items.map(item => ({
+        userId: item.handle,
+        solvedCount: item.solvedCount
+      }));
 
-//       return userData;
-//     }))
+      return userData;
+    }))
 
-//     const sortedUsersData = usersData.flat().sort((a, b) => b.solvedCount - a.solvedCount);
-//     console.log('sortedUser', sortedUsersData);
-//     res.send(sortedUsersData);
-//   }
-//   catch (error) {
-//     console.error(error);
-//   }
-// });
+    const sortedUsersData = usersData.flat().sort((a, b) => b.solvedCount - a.solvedCount);
+    console.log('sortedUser', sortedUsersData);
+    res.send(sortedUsersData);
+  }
+  catch (error) {
+    console.error(error);
+  }
+});
 
-// app.get('/id-check', async (req,res) => {
-//   const options = {
-//     method: 'GET',
-//     url: 'https://solved.ac/api/v3/search/user',
-//     params: {query: 'yeom123'},
-//     headers: {Accept: 'application/json'}
-//   };
+app.get('/id-check', async (req,res) => {
+  const {userId} = req.query;
+  const options = {
+    method: 'GET',
+    url: 'https://solved.ac/api/v3/search/user',
+    params: {query: userId},
+    headers: {Accept: 'application/json'}
+  };
   
-//   try {
-//     const { data } = await axios.request(options);
-//     if(data.count === 0){
-//       res.send({
-//         idCheck: false
-//       })
-//     }
-//     else{
-//       res.send({
-//         idCheck: true
-//       });
-//     }
+  try {
+    const { data } = await axios.request(options);
+    if(data.count === 0){
+      res.send({
+        idCheck: false
+      })
+    }
+    else{
+      res.send({
+        idCheck: true
+      });
+    }
     
-//   } catch (error) {
-//     console.error(error);
-//   }
-// })
+  } catch (error) {
+    console.error(error);
+  }
+})
 
 
 app.listen(80);
